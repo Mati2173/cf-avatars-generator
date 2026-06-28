@@ -25,8 +25,9 @@ logs-api: ## Ver logs del API
 logs-web: ## Ver logs del frontend
 	$(COMPOSE) logs -f web
 
-clean: ## Eliminar contenedores, imágenes y volúmenes
+clean: ## Eliminar contenedores, imágenes y volúmenes de todos los stacks
 	$(COMPOSE) down -v --rmi local
+	cd monitoring && $(COMPOSE) -f docker-compose.monitoring.yml down -v
 
 health: ## Verificar health del API
 	@curl -sf http://localhost:8080/health | python3 -m json.tool || echo "API no disponible"
@@ -59,6 +60,9 @@ test-api: ## Probar endpoints del API (requiere servicios corriendo)
 
 monitoring: ## Levantar Prometheus + Grafana
 	cd monitoring && $(COMPOSE) -f docker-compose.monitoring.yml up -d
+
+monitoring-down: ## Detener Prometheus + Grafana
+	cd monitoring && $(COMPOSE) -f docker-compose.monitoring.yml down
 
 load-quick: ## Load test rápido (30s, 10 usuarios)
 	@mkdir -p loadtest/reports

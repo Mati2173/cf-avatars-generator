@@ -282,7 +282,7 @@ El dashboard **"Avatares — API Dashboard"** se carga automáticamente (auto-pr
 ### Detener monitoreo
 
 ```bash
-docker compose -f docker-compose.yml -f monitoring/docker-compose.monitoring.yml down
+cd monitoring/ && docker compose -f docker-compose.monitoring.yml down
 ```
 
 ---
@@ -340,6 +340,7 @@ Al finalizar cada test se genera un reporte HTML en `loadtest/reports/` que se a
 avatares-devops/
 ├── api/                          # Backend Python
 │   ├── Dockerfile                # Python 3.12 slim + Gunicorn
+│   ├── Dockerfile.test           # Imagen para ejecución de tests
 │   ├── app.py                    # Aplicación Flask (avatar, gallery, metrics)
 │   ├── install_parts.py          # Pre-instalación de SVGs custom
 │   ├── requirements.txt          # Dependencias de producción
@@ -354,6 +355,7 @@ avatares-devops/
 │
 ├── web/                          # Frontend React
 │   ├── Dockerfile                # Multi-stage: Node 22 → Nginx
+│   ├── Dockerfile.test           # Imagen para tests frontend
 │   ├── nginx.conf                # Proxy reverso + SPA fallback
 │   ├── package.json
 │   ├── vite.config.js            # Vite + Vitest config
@@ -368,7 +370,7 @@ avatares-devops/
 │       ├── Parts.test.jsx        # Tests del editor
 │       └── Gallery.test.jsx      # Tests de la galería
 │
-├── monitoring/                   # Observabilidad
+├── monitoring/                   # Stack de observabilidad desacoplado
 │   ├── prometheus.yml            # Config de scraping
 │   ├── docker-compose.monitoring.yml
 │   └── grafana/
@@ -409,7 +411,7 @@ make help
 | `make logs-api` | Ver logs solo del API |
 | `make logs-web` | Ver logs solo del frontend |
 | `make build` | Construir imágenes sin levantar |
-| `make clean` | Eliminar contenedores, imágenes y volúmenes |
+| `make clean` | Eliminar contenedores, imágenes y volúmenes de todos los stacks |
 | `make test` | Ejecutar todos los tests (backend + frontend) |
 | `make test-backend` | Tests unitarios del backend (pytest) |
 | `make test-frontend` | Tests unitarios del frontend (vitest) |
@@ -417,6 +419,7 @@ make help
 | `make health` | Verificar estado del API |
 | `make metrics` | Ver métricas Prometheus |
 | `make monitoring` | Levantar Prometheus + Grafana |
+| `make monitoring-down` | Detener stack de monitoreo |
 | `make load-quick` | Load test rápido (30s, 10 usuarios) |
 | `make load-full` | Load test completo (2min, 20 usuarios pico) |
 
