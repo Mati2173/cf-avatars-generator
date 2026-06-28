@@ -2,6 +2,8 @@
 #   docker compose -f docker-compose.k6.yml run --rm k6-quick
 #   docker compose -f docker-compose.k6.yml run --rm k6-full
 
+name: avatars-generator-k6
+
 services:
   k6-quick:
     image: grafana/k6:0.57.0
