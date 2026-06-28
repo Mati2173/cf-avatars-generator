@@ -178,3 +178,134 @@ sin errores de permisos.
 
 ### Resultado
 Las pruebas de carga ahora son completamente reproducibles y compatibles con buenas prácticas DevOps, garantizando que los artefactos generados por k6 pertenezcan correctamente al usuario que ejecuta el comando en el host. La directiva `user` en Docker Compose asegura que el contenedor siempre tenga los permisos adecuados, independientemente del usuario que ejecute `make load-*`.
+
+---
+
+## 3. Separación del stack de observabilidad
+
+### Problema
+
+Inicialmente, el stack de monitoreo (`Prometheus` + `Grafana`) se levantaba utilizando múltiples archivos Compose combinados desde la raíz del proyecto:
+
+```bash
+docker compose -f docker-compose.yml -f monitoring/docker-compose.monitoring.yml up -d
+```
+
+Este enfoque generaba varios problemas:
+
+* acoplamiento entre aplicación y monitoreo
+* conflictos de rutas relativas para volúmenes
+* dificultad para reutilizar el stack de observabilidad
+* dependencias implícitas entre servicios no relacionadas
+* errores de resolución de archivos montados en Docker
+
+Además, las redes Docker eran generadas automáticamente utilizando el nombre del directorio del proyecto, provocando inconsistencias entre entornos.
+
+---
+
+### Solución
+
+Se desacopló completamente el stack de observabilidad.
+
+#### Cambios realizados
+
+#### Definición explícita de nombres de proyecto Compose
+
+Se agregó un nombre fijo a cada stack:
+
+```yaml
+name: avatar-generator
+```
+
+```yaml
+name: avatar-generator-monitoring
+```
+
+Esto evita dependencias del nombre del directorio local del repositorio.
+
+---
+
+#### Definición explícita de la red compartida
+
+En el stack principal:
+
+```yaml
+networks:
+  avatars-generator-net:
+    driver: bridge
+    name: avatars-generator-net
+```
+
+En el stack de monitoreo:
+
+```yaml
+networks:
+  avatars-generator-net:
+    external: true
+    name: avatars-generator-net
+```
+
+Esto permite compartir una red estable entre stacks independientes.
+
+---
+
+#### Ejecución desacoplada desde Makefile
+
+El Makefile fue modificado para ejecutar el stack de monitoreo desde su propio contexto:
+
+```makefile
+monitoring:
+	cd monitoring && docker compose -f docker-compose.monitoring.yml up -d
+```
+
+---
+
+#### Corrección de rutas relativas
+
+Debido al cambio de contexto (`cd monitoring`), las rutas internas del compose de monitoreo fueron simplificadas:
+
+Antes:
+
+```yaml
+# prometheus
+./monitoring/prometheus.yml
+
+# grafana
+./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+```
+
+Ahora:
+
+```yaml
+# prometheus
+./prometheus.yml
+
+# grafana
+./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+./grafana/dashboards:/var/lib/grafana/dashboards:ro
+```
+
+Esto vuelve el stack autocontenido dentro del directorio `monitoring/`.
+
+---
+
+### Impacto
+
+* separación real entre aplicación y observabilidad
+* networking Docker más predecible
+* eliminación de dependencias implícitas
+* mayor portabilidad entre entornos
+* simplificación del mantenimiento del stack de monitoreo
+
+---
+
+### Resultado
+
+El stack de observabilidad quedó desacoplado de la aplicación principal, permitiendo ejecutar `Prometheus` y `Grafana` como servicios independientes conectados mediante una red Docker compartida y explícitamente definida.
+
+La infraestructura ahora utiliza nombres de proyecto y redes determinísticos, eliminando dependencias del nombre local del repositorio y resolviendo correctamente rutas y volúmenes entre stacks separados.
+
+Esto mejora la portabilidad, mantenibilidad y reproducibilidad del entorno, alineando la arquitectura con prácticas reales de observabilidad y separación de responsabilidades en entornos DevOps.

@@ -1,12 +1,14 @@
-# Ejecutar junto al compose principal:
-#   docker compose -f docker-compose.yml -f monitoring/docker-compose.monitoring.yml up -d
+# Levantar de forma independiente (asegúrate de levantar la app principal primero para que exista la red):
+#   cd monitoring && docker compose -f docker-compose.monitoring.yml up -d
+
+name: avatars-generator-monitoring
 
 services:
   prometheus:
     image: prom/prometheus:v3.4.0
-    container_name: avatars-prometheus
+    container_name: avatars-generator-prometheus
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
@@ -14,11 +16,11 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.retention.time=7d"
     networks:
-      - avatars-net
+      - avatars-generator-net
 
   grafana:
     image: grafana/grafana:11.6.0
-    container_name: avatars-grafana
+    container_name: avatars-generator-grafana
     ports:
       - "3000:3000"
     environment:
@@ -26,19 +28,19 @@ services:
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana-data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
-      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
-      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     depends_on:
       - prometheus
     networks:
-      - avatars-net
+      - avatars-generator-net
 
 volumes:
   prometheus-data:
   grafana-data:
 
 networks:
-  avatars-net:
+  avatars-generator-net:
     external: true
-    name: avatares-devops_avatars-net
+    name: avatars-generator-net

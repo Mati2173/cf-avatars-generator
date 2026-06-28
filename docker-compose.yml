@@ -1,3 +1,5 @@
+name: avatars-generator
+
 services:
   api:
     build:
@@ -19,7 +21,7 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - avatars-net
+      - avatars-generator-net
 
   web:
     build:
@@ -33,11 +35,12 @@ services:
       api:
         condition: service_healthy
     networks:
-      - avatars-net
+      - avatars-generator-net
 
 volumes:
   api-data:
 
 networks:
-  avatars-net:
+  avatars-generator-net:
     driver: bridge
+    name: avatars-generator-net

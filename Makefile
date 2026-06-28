@@ -58,7 +58,7 @@ test-api: ## Probar endpoints del API (requiere servicios corriendo)
 	@echo "Todos los endpoints OK"
 
 monitoring: ## Levantar Prometheus + Grafana
-	$(COMPOSE) -f docker-compose.yml -f monitoring/docker-compose.monitoring.yml up -d
+	cd monitoring && $(COMPOSE) -f docker-compose.monitoring.yml up -d
 
 load-quick: ## Load test rápido (30s, 10 usuarios)
 	@mkdir -p loadtest/reports

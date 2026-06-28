@@ -194,7 +194,7 @@ services:
 
 ### Red
 
-Los servicios se comunican a través de la red `avatars-net`. El API solo usa `expose` (no `ports`), así que no es accesible desde el host directamente — solo a través de Nginx.
+Los servicios se comunican a través de la red `avatars-generator-net`. El API solo usa `expose` (no `ports`), así que no es accesible desde el host directamente — solo a través de Nginx.
 
 ### Comandos Docker
 
