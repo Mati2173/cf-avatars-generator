@@ -5,6 +5,7 @@
 services:
   k6-quick:
     image: grafana/k6:0.57.0
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - ./loadtest:/scripts:ro
       - ./loadtest/reports:/reports
@@ -16,6 +17,7 @@ services:
 
   k6-full:
     image: grafana/k6:0.57.0
+    user: "${UID:-1000}:${GID:-1000}"
     volumes:
       - ./loadtest:/scripts:ro
       - ./loadtest/reports:/reports

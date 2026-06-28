@@ -61,11 +61,13 @@ monitoring: ## Levantar Prometheus + Grafana
 	$(COMPOSE) -f docker-compose.yml -f monitoring/docker-compose.monitoring.yml up -d
 
 load-quick: ## Load test rápido (30s, 10 usuarios)
+	@mkdir -p loadtest/reports
 	$(COMPOSE) -f docker-compose.k6.yml run --rm k6-quick
 	@echo "📊 Reporte: loadtest/reports/quick-report.html"
 	@open loadtest/reports/quick-report.html 2>/dev/null || true
 
 load-full: ## Load test completo (2min, 20 usuarios pico)
+	@mkdir -p loadtest/reports
 	$(COMPOSE) -f docker-compose.k6.yml run --rm k6-full
 	@echo "📊 Reporte: loadtest/reports/full-report.html"
 	@open loadtest/reports/full-report.html 2>/dev/null || true
