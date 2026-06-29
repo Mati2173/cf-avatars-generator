@@ -27,3 +27,8 @@ dist/
 
 # Load test reports
 loadtest/reports/
+
+# Environment Variables
+.env
+.env.*
+!.env.example

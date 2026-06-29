@@ -311,3 +311,119 @@ El stack de observabilidad quedó desacoplado de la aplicación principal, permi
 La infraestructura ahora utiliza nombres de proyecto y redes determinísticos, eliminando dependencias del nombre local del repositorio y mejorando la reproducibilidad del entorno entre distintas máquinas y entornos DevOps.
 
 Además, la observabilidad quedó organizada como un stack independiente, facilitando mantenimiento, reutilización y futuras migraciones hacia entornos Kubernetes o arquitecturas multi-stack.
+
+---
+
+## 4. Externalización y estandarización de variables de entorno
+
+### Problema
+
+Inicialmente, múltiples variables de configuración estaban hardcodeadas directamente dentro de los archivos `docker-compose`:
+
+```yaml
+environment:
+  - FLASK_ENV=production
+  - DB_PATH=/data/avatars.db
+```
+
+```yaml
+environment:
+  - BASE_URL=http://host.docker.internal:8080
+```
+
+```yaml
+environment:
+  - GF_SECURITY_ADMIN_PASSWORD=admin
+  - GF_USERS_ALLOW_SIGN_UP=false
+```
+
+Esto generaba varios problemas:
+
+* configuración duplicada entre entornos
+* dificultad para reutilizar configuraciones
+* menor portabilidad entre desarrollo local y CI/CD
+* exposición accidental de valores sensibles
+* necesidad de modificar archivos Compose para cambiar parámetros operativos
+
+---
+
+### Solución aplicada
+
+Se centralizó toda la configuración de entorno utilizando un archivo `.env` en la raíz del proyecto.
+
+#### Archivo `.env.example`
+
+Se agregó un template versionado:
+
+```env
+FLASK_ENV=production
+DB_PATH=/data/avatars.db
+
+BASE_URL=http://host.docker.internal:8080
+
+GF_SECURITY_ADMIN_PASSWORD=admin
+GF_USERS_ALLOW_SIGN_UP=false
+```
+
+---
+
+#### Exclusión de variables sensibles
+
+El `.gitignore` fue actualizado para evitar subir archivos reales de entorno:
+
+```gitignore
+# Environment Variables
+.env
+.env.*
+!.env.example
+```
+
+Esto permite compartir únicamente el template de configuración sin exponer valores reales.
+
+---
+
+#### Parametrización de Docker Compose
+
+Los stacks Docker fueron modificados para consumir variables dinámicas mediante interpolación:
+
+Antes:
+
+```yaml
+environment:
+  - FLASK_ENV=production
+  - DB_PATH=/data/avatars.db
+```
+
+Ahora:
+
+```yaml
+environment:
+  FLASK_ENV: ${FLASK_ENV:-development}
+  DB_PATH: ${DB_PATH:-/data/avatars.db}
+```
+
+---
+
+También se aplicó el mismo patrón a:
+
+* k6 (`BASE_URL`)
+* Grafana (`GF_SECURITY_ADMIN_PASSWORD`, `GF_USERS_ALLOW_SIGN_UP`)
+* futuras configuraciones multi-entorno
+
+---
+
+### Impacto
+
+* configuración desacoplada del código fuente
+* mayor reproducibilidad entre entornos
+* compatibilidad directa con CI/CD
+* simplificación de overrides por entorno
+* alineación con prácticas DevOps y Twelve-Factor App
+
+---
+
+### Resultado
+
+La infraestructura ahora soporta configuración dinámica y portable mediante variables de entorno centralizadas, permitiendo reutilizar los mismos archivos Docker Compose en desarrollo local, testing y pipelines CI/CD sin necesidad de modificar la definición de servicios.
+
+El uso de `.env.example` además documenta explícitamente las variables requeridas por el proyecto y reduce errores de configuración en nuevos entornos.

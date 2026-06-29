@@ -171,6 +171,25 @@ curl http://localhost:8080/metrics
 - Diseño responsive (desktop, tablet, mobile)
 
 ---
+ 
+## Variables de Entorno
+ 
+El proyecto utiliza variables de entorno opcionales mediante Docker Compose. La aplicación funciona con valores por defecto, pero puedes personalizarla creando un archivo `.env`:
+ 
+```bash
+cp .env.example .env
+```
+ 
+Docker Compose cargará automáticamente estas variables durante la ejecución de los distintos stacks. Esto permite:
+ 
+- Separar configuración del código
+- Facilitar despliegues multi-entorno
+- Compatibilidad con CI/CD
+- Parametrización flexible de servicios Docker
+
+**Nota**: Si el archivo `.env` no existe, la aplicación seguirá funcionando normalmente con sus valores por defecto.
+
+---
 
 ## Docker
 
