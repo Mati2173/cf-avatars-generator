@@ -26,8 +26,8 @@ logs-web: ## Ver logs del frontend
 	$(COMPOSE) logs -f web
 
 clean: ## Eliminar contenedores, imágenes y volúmenes de todos los stacks
-	$(COMPOSE) down -v --rmi local
 	cd monitoring && $(COMPOSE) -f docker-compose.monitoring.yml down -v
+	$(COMPOSE) down -v --rmi local
 
 health: ## Verificar health del API
 	@curl -sf http://localhost:8080/health | python3 -m json.tool || echo "API no disponible"
