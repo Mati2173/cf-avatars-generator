@@ -185,7 +185,7 @@ Las pruebas de carga ahora son completamente reproducibles y compatibles con bue
 
 ### Problema
 
-Inicialmente, el stack de monitoreo (`Prometheus` + `Grafana`) se levantaba utilizando múltiples archivos Compose combinados desde la raíz del proyecto:
+Inicialmente, el stack de monitoreo (`Prometheus` + `Grafana`) se levantaba utilizando múltiples archivos Compose combinados:
 
 ```bash
 docker compose -f docker-compose.yml -f monitoring/docker-compose.monitoring.yml up -d
@@ -194,12 +194,12 @@ docker compose -f docker-compose.yml -f monitoring/docker-compose.monitoring.yml
 Este enfoque generaba varios problemas:
 
 * acoplamiento entre aplicación y monitoreo
-* conflictos de rutas relativas para volúmenes
+* dependencia implícita entre stacks distintos
 * dificultad para reutilizar el stack de observabilidad
-* dependencias implícitas entre servicios no relacionadas
-* errores de resolución de archivos montados en Docker
+* conflictos por nombres dinámicos de redes Docker
+* comportamiento inconsistente entre distintos entornos locales
 
-Además, las redes Docker eran generadas automáticamente utilizando el nombre del directorio del proyecto, provocando inconsistencias entre entornos.
+Además, Docker Compose generaba automáticamente nombres de red basados en el directorio del proyecto, provocando fallos al intentar compartir networking entre stacks independientes.
 
 ---
 
@@ -214,14 +214,14 @@ Se desacopló completamente el stack de observabilidad.
 Se agregó un nombre fijo a cada stack:
 
 ```yaml
-name: avatar-generator
+name: avatars-generator
 ```
 
 ```yaml
-name: avatar-generator-monitoring
+name: avatars-generator-monitoring
 ```
 
-Esto evita dependencias del nombre del directorio local del repositorio.
+Esto evita dependencias del nombre local del directorio del repositorio.
 
 ---
 
@@ -245,50 +245,51 @@ networks:
     name: avatars-generator-net
 ```
 
-Esto permite compartir una red estable entre stacks independientes.
+Esto permite que ambos stacks compartan una red estable y predecible sin necesidad de ejecutarse como un único proyecto Compose.
 
 ---
 
-#### Ejecución desacoplada desde Makefile
+#### Ejecución independiente del stack de monitoreo
 
-El Makefile fue modificado para ejecutar el stack de monitoreo desde su propio contexto:
+El Makefile fue modificado para levantar el stack de observabilidad utilizando un compose dedicado e independiente del stack principal:
 
 ```makefile
 monitoring:
-	cd monitoring && docker compose -f docker-compose.monitoring.yml up -d
+	$(COMPOSE) -f docker-compose.monitoring.yml up -d
+```
+
+También se agregó un comando específico para detener únicamente los servicios de observabilidad:
+
+```makefile
+monitoring-down:
+	$(COMPOSE) -f docker-compose.monitoring.yml down
+```
+
+Y el target `clean` fue extendido para eliminar también los recursos asociados al monitoreo:
+
+```makefile
+clean:
+	$(COMPOSE) -f docker-compose.monitoring.yml down -v
+	$(COMPOSE) down -v --rmi local
 ```
 
 ---
 
-#### Corrección de rutas relativas
+#### Organización del stack de monitoreo
 
-Debido al cambio de contexto (`cd monitoring`), las rutas internas del compose de monitoreo fueron simplificadas:
+El archivo `docker-compose.monitoring.yml` fue desacoplado del compose principal y ahora funciona como un stack independiente ubicado en la raíz del proyecto.
 
-Antes:
+La configuración de Prometheus y Grafana permanece organizada dentro del directorio `monitoring/`:
 
-```yaml
-# prometheus
-./monitoring/prometheus.yml
-
-# grafana
-./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
-./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
-./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+```text
+monitoring/
+├── prometheus.yml
+└── grafana/
+    ├── dashboards/
+    └── provisioning/
 ```
 
-Ahora:
-
-```yaml
-# prometheus
-./prometheus.yml
-
-# grafana
-./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
-./grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
-./grafana/dashboards:/var/lib/grafana/dashboards:ro
-```
-
-Esto vuelve el stack autocontenido dentro del directorio `monitoring/`.
+Esto permite mantener separada la configuración de observabilidad sin mezclar responsabilidades con los servicios principales de la aplicación.
 
 ---
 
@@ -299,6 +300,7 @@ Esto vuelve el stack autocontenido dentro del directorio `monitoring/`.
 * eliminación de dependencias implícitas
 * mayor portabilidad entre entornos
 * simplificación del mantenimiento del stack de monitoreo
+* desacoplamiento operativo entre servicios
 
 ---
 
@@ -306,6 +308,6 @@ Esto vuelve el stack autocontenido dentro del directorio `monitoring/`.
 
 El stack de observabilidad quedó desacoplado de la aplicación principal, permitiendo ejecutar `Prometheus` y `Grafana` como servicios independientes conectados mediante una red Docker compartida y explícitamente definida.
 
-La infraestructura ahora utiliza nombres de proyecto y redes determinísticos, eliminando dependencias del nombre local del repositorio y resolviendo correctamente rutas y volúmenes entre stacks separados.
+La infraestructura ahora utiliza nombres de proyecto y redes determinísticos, eliminando dependencias del nombre local del repositorio y mejorando la reproducibilidad del entorno entre distintas máquinas y entornos DevOps.
 
-Esto mejora la portabilidad, mantenibilidad y reproducibilidad del entorno, alineando la arquitectura con prácticas reales de observabilidad y separación de responsabilidades en entornos DevOps.
+Además, la observabilidad quedó organizada como un stack independiente, facilitando mantenimiento, reutilización y futuras migraciones hacia entornos Kubernetes o arquitecturas multi-stack.

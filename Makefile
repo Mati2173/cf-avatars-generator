@@ -26,7 +26,7 @@ logs-web: ## Ver logs del frontend
 	$(COMPOSE) logs -f web
 
 clean: ## Eliminar contenedores, imágenes y volúmenes de todos los stacks
-	cd monitoring && $(COMPOSE) -f docker-compose.monitoring.yml down -v
+	$(COMPOSE) -f docker-compose.monitoring.yml down -v
 	$(COMPOSE) down -v --rmi local
 
 health: ## Verificar health del API
@@ -59,10 +59,10 @@ test-api: ## Probar endpoints del API (requiere servicios corriendo)
 	@echo "Todos los endpoints OK"
 
 monitoring: ## Levantar Prometheus + Grafana
-	cd monitoring && $(COMPOSE) -f docker-compose.monitoring.yml up -d
+	$(COMPOSE) -f docker-compose.monitoring.yml up -d
 
 monitoring-down: ## Detener Prometheus + Grafana
-	cd monitoring && $(COMPOSE) -f docker-compose.monitoring.yml down
+	$(COMPOSE) -f docker-compose.monitoring.yml down
 
 load-quick: ## Load test rápido (30s, 10 usuarios)
 	@mkdir -p loadtest/reports
