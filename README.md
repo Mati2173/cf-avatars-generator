@@ -355,18 +355,20 @@ Al finalizar cada test se genera un reporte HTML en `loadtest/reports/` que se a
 
 ## Estructura del Proyecto
 
-```
+```text
 avatares-devops/
 ├── api/                          # Backend Python
 │   ├── Dockerfile                # Python 3.12 slim + Gunicorn
 │   ├── Dockerfile.test           # Imagen para ejecución de tests
 │   ├── app.py                    # Aplicación Flask (avatar, gallery, metrics)
+│   ├── __init__.py
 │   ├── install_parts.py          # Pre-instalación de SVGs custom
 │   ├── requirements.txt          # Dependencias de producción
 │   ├── requirements-test.txt     # Dependencias de test (pytest)
 │   ├── docker_shirt.svg          # SVG custom: camiseta Docker
 │   ├── tilt_shirt.svg            # SVG custom: camiseta Tilt
 │   └── tests/                    # Tests unitarios
+│       ├── __init__.py
 │       ├── conftest.py
 │       ├── test_avatar.py
 │       ├── test_gallery.py
@@ -377,21 +379,26 @@ avatares-devops/
 │   ├── Dockerfile.test           # Imagen para tests frontend
 │   ├── nginx.conf                # Proxy reverso + SPA fallback
 │   ├── package.json
+│   ├── package-lock.json
 │   ├── vite.config.js            # Vite + Vitest config
 │   ├── index.html
 │   └── src/
+│       ├── main.jsx              # Punto de entrada React
 │       ├── App.jsx               # Componente principal (editor + galería)
 │       ├── Parts.jsx             # Editor de partes del avatar
 │       ├── Gallery.jsx           # Galería de avatares guardados
 │       ├── App.css               # Estilos (tema oscuro, glassmorphism)
 │       ├── index.css             # Variables CSS globales
+│       ├── favicon.svg
 │       ├── App.test.jsx          # Tests del App
 │       ├── Parts.test.jsx        # Tests del editor
-│       └── Gallery.test.jsx      # Tests de la galería
+│       ├── Gallery.test.jsx      # Tests de la galería
+│       └── test/
+│           ├── mocks.js          # Mocks para tests
+│           └── setup.js          # Setup global Vitest
 │
 ├── monitoring/                   # Stack de observabilidad desacoplado
 │   ├── prometheus.yml            # Config de scraping
-│   ├── docker-compose.monitoring.yml
 │   └── grafana/
 │       ├── dashboards/
 │       │   └── avatars.json      # Dashboard auto-provisionado
@@ -407,9 +414,17 @@ avatares-devops/
 │   ├── report.js                 # Generador de reportes HTML
 │   └── reports/                  # Reportes generados (gitignored)
 │
+├── docs/                         # Documentación técnica y evidencias
+│   ├── DEVOPS_EVOLUTION_TESTING.md
+│   ├── DEVOPS_INFRA_CHANGES.md
+│   └── *.png                     # Capturas adicionales
+│
 ├── docker-compose.yml            # Servicios principales (api + web)
 ├── docker-compose.k6.yml         # Load testing con k6
+├── docker-compose.monitoring.yml # Stack de observabilidad
 ├── Makefile                      # Comandos automatizados
+├── .env.example                  # Template de variables de entorno
+├── ABOUT.md                      # Información adicional del proyecto
 └── README.md
 ```
 
