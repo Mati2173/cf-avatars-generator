@@ -38,11 +38,11 @@ metrics: ## Ver métricas del API
 test: test-backend test-frontend ## Ejecutar todos los tests
 
 test-backend: ## Tests unitarios del backend (pytest)
-	docker build -q -t avatar-generator-api-test -f api/Dockerfile.test api/
+	docker build -q --target test -t avatar-generator-api-test api/
 	docker run --rm avatar-generator-api-test
 
 test-frontend: ## Tests unitarios del frontend (vitest)
-	docker build -q -t avatar-generator-web-test -f web/Dockerfile.test web/
+	docker build -q --target test -t avatar-generator-web-test web/
 	docker run --rm avatar-generator-web-test
 
 test-api: ## Probar endpoints del API (requiere servicios corriendo)

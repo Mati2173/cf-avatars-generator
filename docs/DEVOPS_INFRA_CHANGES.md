@@ -427,3 +427,40 @@ También se aplicó el mismo patrón a:
 La infraestructura ahora soporta configuración dinámica y portable mediante variables de entorno centralizadas, permitiendo reutilizar los mismos archivos Docker Compose en desarrollo local, testing y pipelines CI/CD sin necesidad de modificar la definición de servicios.
 
 El uso de `.env.example` además documenta explícitamente las variables requeridas por el proyecto y reduce errores de configuración en nuevos entornos.
+
+---
+
+## 5. Migración a contenedores No-Root y Optimización Multi-Stage
+
+### Problema
+
+Las imágenes iniciales presentaban áreas de mejora de cara a entornos productivos estrictos (DevSecOps):
+
+* El contenedor frontend (`nginx`) corría sus procesos maestros como usuario `root` (UID 0), necesario para escuchar en el puerto privilegiado `80`.
+* El contenedor backend (`api`) instalaba dependencias globalmente, dejando basura de compilación y cachés en la imagen final.
+
+---
+
+### Soluciones Aplicadas
+
+#### Frontend (Nginx Unprivileged)
+
+Se migró la imagen base a la variante oficial `nginxinc/nginx-unprivileged:alpine`.
+* El proceso corre bajo el usuario `nginx` (UID 101).
+* Se modificó el archivo `nginx.conf` y el `docker-compose.yml` para escuchar y mapear sobre el puerto **`8080`** (ya que los puertos < 1024 requieren permisos de root).
+
+#### Backend (Multi-Stage y Usuario No-Root)
+
+Se reestructuró el `api/Dockerfile` utilizando el patrón *Multi-Stage*:
+* **Stage Builder:** Crea un entorno virtual (`venv`) e instala todas las dependencias necesarias.
+* **Stage Production:** Solo copia el `venv` limpio y el código fuente. Se creó el usuario `appuser` (UID 1000) y se configuraron los permisos adecuados (`chown`) sobre el directorio `/data` (SQLite).
+
+#### Limpieza de Contexto
+
+Se actualizaron los `.dockerignore` para excluir `.env`, `.venv` y otros archivos locales que aumentaban el peso y riesgo del contexto de build.
+
+---
+
+### Impacto
+* Cumplimiento estricto de buenas prácticas DevSecOps (No-Root Containers).
+* Imágenes productivas significativamente más limpias.
