@@ -505,3 +505,41 @@ Esta primera iteración parcial se enfoca exclusivamente en estabilidad, delegan
 * **Visibilidad temprana:** Cualquier rotura de dependencias o tests fallidos se visibiliza de inmediato en los PRs, antes del merge.
 * **Artefactos continuos:** La rama `develop` ahora siempre cuenta con una imagen lista y empaquetada (tag `edge`) para pruebas end-to-end.
 * **Fundación sólida:** Queda establecida la base YAML y permisos para posteriormente sumar escáneres de seguridad y flujos de release.
+
+---
+
+## 7. Fase 2 (Iteración 2): Workflow de Release y Semantic Versioning
+
+### Problema / Objetivo
+Con el pipeline de CI validando integraciones en `develop` de forma exitosa, el siguiente paso es automatizar la generación de entregables estables y listos para producción. Necesitamos un mecanismo formal para etiquetar y publicar imágenes definitivas en GHCR de acuerdo a estándares de la industria, asegurando que K8s y otras infraestructuras tengan referencias inmutables.
+
+---
+
+### Solución Implementada (Release Workflow)
+
+Se implementó el archivo `.github/workflows/release.yml`, diseñado exclusivamente para dispararse cuando se etiquetan versiones en la rama principal.
+
+#### Características de la Iteración:
+1. **Trigger por Tags (SemVer):**
+   - El pipeline solo se ejecuta cuando se detecta un push de un tag en formato de Semantic Versioning (ej. `v1.2.3`).
+   - Esto mantiene la separación entre integraciones continuas (commits normales) y releases formales.
+
+2. **Validación Pre-Release:**
+   - Antes de empaquetar, el workflow ejecuta la suite completa de tests (`make test`), asegurando que solo el código que pase las pruebas pueda convertirse en una release.
+
+3. **Etiquetado Semántico Automático:**
+   - Utilizando `docker/metadata-action`, GHCR automáticamente recibe las imágenes con múltiples etiquetas correspondientes al versionado semántico:
+     - `{{version}}` (ej. `1.2.3`)
+     - `{{major}}.{{minor}}` (ej. `1.2`)
+     - `{{major}}` (ej. `1`)
+   - Esto permite que los deployments referencien la versión exacta o consuman actualizaciones menores automáticamente.
+
+4. **Cacheado y Optimización:**
+   - Se mantiene la directiva `cache-to: type=gha,mode=max` y `cache-from: type=gha`, logrando que la construcción del release herede las capas cacheadas durante la fase de CI en `develop`.
+
+---
+
+### Impacto de la Iteración
+* **Trazabilidad Total:** Cada imagen productiva ahora está estrictamente ligada a un tag de Git.
+* **Separación de Responsabilidades:** CI para iterar rápido en `develop`, CD (Release) para entregables estables.
+* **Listo para Fase 3:** Las bases están establecidas para que cualquier clúster de Kubernetes o instancia de AWS despliegue la versión generada desde GHCR con total predictibilidad.
