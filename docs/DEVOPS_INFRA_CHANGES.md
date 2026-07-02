@@ -464,3 +464,44 @@ Se actualizaron los `.dockerignore` para excluir `.env`, `.venv` y otros archivo
 ### Impacto
 * Cumplimiento estricto de buenas prácticas DevSecOps (No-Root Containers).
 * Imágenes productivas significativamente más limpias.
+
+---
+
+## 6. Fase 2 (Iteración 1): Integración Continua Base (CI) y GHCR
+
+### Problema / Objetivo
+Con la infraestructura local estandarizada mediante Makefile y multi-stage Dockerfiles, el siguiente paso lógico es llevar la verificación de código a un pipeline automatizado, comprobando que las compilaciones y pruebas funcionan consistentemente antes de integrar código en las ramas principales. Además, requerimos que las compilaciones exitosas en ramas de integración generen y publiquen imágenes Docker.
+
+---
+
+### Solución Implementada (CI Base)
+
+Se diseñó e implementó un flujo de **Integración Continua Mínimo Viable** en GitHub Actions (`.github/workflows/ci.yml`).
+
+Esta primera iteración parcial se enfoca exclusivamente en estabilidad, delegando el versionado semántico, escaneo profundo de vulnerabilidades (DevSecOps) y Continuous Deployment (CD) para etapas posteriores.
+
+#### Características de la Iteración:
+1. **Triggers Controlados:**
+   - Se ejecuta en **Pull Requests** hacia `main` y `develop` (Solo validación).
+   - Se ejecuta en **Pushes directos** a `develop` (Validación + Construcción + Push a Registry).
+
+2. **Reaprovechamiento de Infraestructura Local:**
+   - El pipeline utiliza `make test-backend` y `make test-frontend`, garantizando que CI ejecute **exactamente los mismos tests y targets Docker** que corren los desarrolladores en sus máquinas locales.
+
+3. **Autenticación GHCR sin secretos quemados:**
+   - Se configuraron los permisos granulares `packages: write` en el job de Actions.
+   - Se utilizó `secrets.GITHUB_TOKEN` para autenticarse automáticamente con GitHub Container Registry, evitando la creación de Personal Access Tokens (PATs) en el repositorio público.
+
+4. **Optimización con Caché:**
+   - Se integró `docker/setup-buildx-action` junto con directivas `cache-to: type=gha,mode=max` y `cache-from: type=gha`. Esto permite que GitHub almacene las capas de Docker (como la instalación de dependencias npm/pip), acelerando drásticamente ejecuciones subsecuentes del pipeline.
+
+5. **Push Condicional de Imágenes (`edge` y `sha-*`):**
+   - El pipeline utiliza `docker/metadata-action` para etiquetar las imágenes automáticamente.
+   - Si (y solo si) el evento es un push directo a `develop`, el pipeline sube las imágenes construidas a GHCR con el tag `edge` y un tag inmutable con el SHA del commit.
+
+---
+
+### Impacto de la Iteración
+* **Visibilidad temprana:** Cualquier rotura de dependencias o tests fallidos se visibiliza de inmediato en los PRs, antes del merge.
+* **Artefactos continuos:** La rama `develop` ahora siempre cuenta con una imagen lista y empaquetada (tag `edge`) para pruebas end-to-end.
+* **Fundación sólida:** Queda establecida la base YAML y permisos para posteriormente sumar escáneres de seguridad y flujos de release.
