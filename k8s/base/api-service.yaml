@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: avatars-api
+spec:
+  selector:
+    app: avatars-api
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+  type: ClusterIP

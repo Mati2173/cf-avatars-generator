@@ -161,3 +161,22 @@ Para entender cómo funciona nuestra aplicación en Kubernetes, este es el viaje
 - **NodePort:** Abre un puerto estático (usualmente en el rango 30000-32767) en *todos* los nodos físicos del clúster. Es primitivo, feo para los usuarios y poco seguro para exponer HTTP. Se usa mayormente para servicios internos muy específicos.
 - **LoadBalancer:** Instruye al proveedor de la nube (AWS, GCP) para que provisione un Balanceador de Carga de red nativo con una IP pública exclusiva. Es caro (se factura por cada servicio) y no entiende de rutas HTTP o dominios, solo de puertos (Capa 4).
 - **Ingress:** Es la forma inteligente de exponer aplicaciones web (Capa 7). Requieres solo un LoadBalancer físico (para el Ingress Controller) y luego puedes enrutar miles de servicios distintos basándote en la URL, subdominios, o *paths*, centralizando el SSL/HTTPS.
+
+---
+
+## Arquitectura Multi-Entorno (Kustomize)
+Para evitar la duplicación de código y permitir que la aplicación escale a múltiples entornos (Local, Staging, Producción) sin romper nada, utilizamos **Kustomize** (nativo en `kubectl`).
+
+Nuestra carpeta `k8s/` está dividida lógicamente en:
+1. **`base/`:** Contiene "La Aplicación Pura". Aquí viven los Deployments, Services y ConfigMaps. No hay mención a Ingress, ni volúmenes persistentes atados a infraestructuras específicas, ni reglas de escalado masivo.
+2. **`overlays/`:** Contienen los "Parches de Entorno". 
+   - El entorno `local/` importa la base y le inyecta el `PersistentVolumeClaim` (porque localmente usamos SQLite en disco), el `Ingress` de NGINX, y nuestro Service Alias (`ExternalName`).
+
+### Comandos de Kustomize
+```bash
+# Validar y previsualizar el YAML final que Kustomize construirá (Dry Run)
+kubectl kustomize k8s/overlays/local/
+
+# Aplicar el entorno completo al clúster (Nota la bandera -k en lugar de -f)
+kubectl apply -k k8s/overlays/local/
+```

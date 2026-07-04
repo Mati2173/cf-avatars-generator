@@ -2,7 +2,6 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: avatars-api
-  namespace: avatars
   labels:
     app: avatars-api
 spec:
@@ -31,9 +30,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: avatars-config
-          volumeMounts:
-            - name: data-volume
-              mountPath: /data
           livenessProbe:
             httpGet:
               path: /health
@@ -46,21 +42,3 @@ spec:
               port: 5000
             initialDelaySeconds: 10
             periodSeconds: 10
-      volumes:
-        - name: data-volume
-          persistentVolumeClaim:
-            claimName: api-data-pvc
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: avatars-api
-  namespace: avatars
-spec:
-  selector:
-    app: avatars-api
-  ports:
-    - protocol: TCP
-      port: 5000
-      targetPort: 5000
-  type: ClusterIP
