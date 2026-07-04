@@ -459,6 +459,47 @@ make help
 
 ---
 
+## Quickstart Kubernetes (Dev Local)
+
+Este proyecto utiliza **Kustomize** para gestionar la configuración de múltiples entornos, separando la aplicación pura (`base/`) de la infraestructura específica (`overlays/`).
+
+Para levantar el entorno local completo en tu máquina:
+
+1. **Configurar Dominio Local:**
+   Añade esta línea a tu archivo `/etc/hosts` (requiere `sudo`):
+   ```text
+   127.0.0.1 avatars-generator.local
+   ```
+
+2. **Crear el Clúster y el Ingress Controller:**
+   Usaremos `kind` mapeando los puertos locales para no requerir `sudo` ni chocar con servidores web existentes.
+   ```bash
+   # Crear clúster con mapeo de puertos 8081 y 8443
+   kind create cluster --name avatars-generator-cluster --config infra/kind/config.yaml
+   
+   # Instalar NGINX Ingress Controller
+   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+   
+   # Esperar a que el Ingress esté listo
+   kubectl get pods -n ingress-nginx -w
+   ```
+
+3. **Desplegar la Aplicación (Kustomize):**
+   ```bash
+   # Aplicar el overlay local (inyecta Ingress, Alias DNS y volúmenes locales)
+   kubectl apply -k k8s/overlays/local/
+   
+   # Esperar a que los Pods de la aplicación estén "Running"
+   kubectl get pods -n avatars-generator -w
+   ```
+
+4. **Acceder:**
+   Abre en tu navegador: `http://avatars-generator.local:8081`
+
+Para entender a fondo la arquitectura, el flujo de red (Ingress -> Service -> Pod -> ExternalName) y los comandos de debugging, revisa el manual detallado en: **[docs/DEVOPS_K8S.md](./docs/DEVOPS_K8S.md)**.
+
+---
+
 ## Desafío: Kubernetes y CI/CD
 
 > **Este es el objetivo principal del proyecto.** Todo lo anterior es la base que ya funciona en Docker. El desafío es implementar las prácticas DevOps para llevar esta aplicación a producción.

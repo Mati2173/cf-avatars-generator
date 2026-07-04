@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: avatars-generator-api
+spec:
+  selector:
+    app: avatars-generator-api
+  ports:
+    - protocol: TCP
+      port: 5000
+      targetPort: 5000
+  type: ClusterIP
