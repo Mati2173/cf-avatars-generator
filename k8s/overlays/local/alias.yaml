@@ -4,6 +4,6 @@ metadata:
   name: api
 spec:
   type: ExternalName
-  externalName: avatars-api.avatars.svc.cluster.local
+  externalName: avatars-generator-api.avatars-generator.svc.cluster.local
   ports:
     - port: 5000

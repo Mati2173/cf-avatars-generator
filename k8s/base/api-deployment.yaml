@@ -1,18 +1,18 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: avatars-api
+  name: avatars-generator-api
   labels:
-    app: avatars-api
+    app: avatars-generator-api
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: avatars-api
+      app: avatars-generator-api
   template:
     metadata:
       labels:
-        app: avatars-api
+        app: avatars-generator-api
     spec:
       containers:
         - name: api
@@ -29,7 +29,7 @@ spec:
               memory: "256Mi"
           envFrom:
             - configMapRef:
-                name: avatars-config
+                name: avatars-generator-config
           livenessProbe:
             httpGet:
               path: /health

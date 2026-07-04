@@ -1,19 +1,19 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: avatars-ingress
+  name: avatars-generator-ingress
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: nginx
   rules:
-  - host: avatars.local
+  - host: avatars-generator.local
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: avatars-web
+            name: avatars-generator-web
             port:
               number: 8080
