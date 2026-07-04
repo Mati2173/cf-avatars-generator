@@ -486,6 +486,10 @@ Para levantar el entorno local completo en tu máquina:
 
 3. **Desplegar la Aplicación (Kustomize):**
    ```bash
+   # Configurar credenciales locales falsas
+   # (Contiene API_KEY, una variable dummy usada para validar inyección de Secrets)
+   cp k8s/overlays/local/.env.secret.example k8s/overlays/local/.env.secret
+
    # Aplicar el overlay local (inyecta Ingress, Alias DNS y volúmenes locales)
    kubectl apply -k k8s/overlays/local/
    

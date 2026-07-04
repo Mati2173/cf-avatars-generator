@@ -30,6 +30,8 @@ spec:
           envFrom:
             - configMapRef:
                 name: avatars-generator-config
+            - secretRef:
+                name: avatars-generator-secret
           livenessProbe:
             httpGet:
               path: /health

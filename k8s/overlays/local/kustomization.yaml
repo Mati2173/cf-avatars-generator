@@ -11,3 +11,8 @@ resources:
 
 patches:
   - path: patch-api-storage.yaml
+
+secretGenerator:
+  - name: avatars-generator-secret
+    envs:
+      - .env.secret

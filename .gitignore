@@ -32,3 +32,4 @@ loadtest/reports/
 .env
 .env.*
 !.env.example
+!.env.secret.example
