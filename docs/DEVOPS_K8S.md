@@ -82,44 +82,45 @@ Para ejecutar este proyecto en K8s local, tu máquina debe tener instalados:
 - **kind:** (Kubernetes IN Docker) para aprovisionar el clúster local.
 - **kubectl:** El cliente CLI oficial para interactuar con la API de Kubernetes.
 
-### 2. Gestión del Clúster (kind)
+### 2. Gestión del Clúster (kind) e Ingress Controller
+> [!NOTE]
+> El archivo `infra/kind/config.yaml` contiene los mapeos de puertos (8081/8443) necesarios para que el Ingress Controller sea accesible desde tu `localhost` sin requerir `sudo` ni colisionar con servicios existentes como Apache. **Este archivo NO se aplica con `kubectl`.**
+
 ```bash
-# Crear un clúster de prueba nuevo
-kind create cluster --name avatars-cluster
+# Crear un clúster de prueba nuevo usando la configuración especial
+kind create cluster --name avatars-cluster --config infra/kind/config.yaml
 
 # Validar que el clúster está corriendo y conectado
 kubectl cluster-info
-kubectl get nodes
 
-# Destruir el clúster (eliminar todo el entorno local)
-kind delete cluster --name avatars-cluster
+# Instalar NGINX Ingress Controller
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+
+# Esperar a que el Ingress Controller esté READY 1/1
+kubectl get pods -n ingress-nginx -w
 ```
 
-### 3. Despliegue de la Aplicación
-Todos los manifiestos se aplican en orden para garantizar que las dependencias lógicas (como el Namespace) existan primero.
+### 3. Configuración de DNS Local
+Para simular un dominio real en K8s de Capa 7, mapeamos un host inventado a tu IP local.
+Añade la siguiente línea al final de tu archivo `/etc/hosts` (requiere `sudo`):
+```text
+127.0.0.1 avatars.local
+```
+
+### 4. Despliegue y Validación
+Una vez que el Ingress Controller esté corriendo, aplica los manifiestos de la aplicación en la carpeta `k8s/`.
 
 ```bash
-# Opción A: Despliegue paso a paso
-kubectl apply -f k8s/01-config.yaml
-kubectl apply -f k8s/02-storage.yaml
-kubectl apply -f k8s/03-api.yaml
-kubectl apply -f k8s/04-web.yaml
-
-# Opción B: Despliegue de toda la carpeta de una vez
+# Aplicar todos los manifiestos de una vez
 kubectl apply -f k8s/
-```
 
-### 4. Validación y Acceso (Port-Forward)
-Para visualizar la aplicación corriendo, necesitamos un túnel desde nuestra máquina hacia el Service del Frontend.
-
-```bash
-# Esperar a que todos los Pods estén en estado "Running" y READY "1/1"
+# Esperar a que los Pods de la aplicación (API y Web) estén listos
 kubectl get pods -n avatars -w
-
-# Abrir el túnel en el puerto 8080 (presiona Ctrl+C para detener)
-kubectl port-forward svc/avatars-web -n avatars 8080:8080
 ```
-*Una vez activo el túnel, navega a `http://localhost:8080` en tu navegador.*
+
+Para probar conectividad (¡sin port-forward!):
+- **Navegador:** `http://avatars.local:8081`
+- **Curl:** `curl -s http://avatars.local:8081/health`
 
 ### 5. Comandos Básicos de Debugging
 Si un Pod se queda en `Pending`, `CrashLoopBackOff` o `Error`, utiliza estos comandos de diagnóstico rápido (reemplazando `<pod-name>` por el nombre real de tu Pod):
@@ -137,3 +138,26 @@ kubectl logs <pod-name> -n avatars
 # Ver logs en tiempo real (seguimiento continuo)
 kubectl logs -f <pod-name> -n avatars
 ```
+
+---
+
+## Conceptos Arquitectónicos de Kubernetes
+
+### El Flujo de Peticiones End-to-End (Ingress a Base de Datos)
+Para entender cómo funciona nuestra aplicación en Kubernetes, este es el viaje exacto que realiza una petición HTTP desde tu navegador hasta la base de datos SQLite:
+
+1. **Browser / K6:** Hace una petición a `http://avatars.local:8081/api/avatar`.
+2. **Máquina Host:** El `/etc/hosts` resuelve `avatars.local` hacia `127.0.0.1`. El puerto `8081` es interceptado por Docker (que corre a `kind`).
+3. **NGINX Ingress Controller:** Recibe la petición en el puerto 80 del Nodo. Lee la URL y matchea la regla de `avatars-ingress` (Todo lo que empiece con `/` va a `avatars-web`).
+4. **Service (Frontend):** El Ingress envía la petición al Service `avatars-web`, que funciona como un Load Balancer interno.
+5. **Pod (Frontend):** El Service elige un Pod de Nginx Unprivileged vivo y le entrega la petición en el puerto 8080.
+6. **Nginx (Frontend):** El bloque de proxy en `nginx.conf` detecta el prefijo `/api/` y redirige el tráfico hacia `http://api:5000`.
+7. **Service Alias (ExternalName):** Kubernetes intercepta la búsqueda DNS de `api` y devuelve el CNAME `avatars-api.avatars.svc.cluster.local`.
+8. **Service (Backend):** La petición llega al Service `avatars-api`, que balancea la carga hacia un Pod de Flask.
+9. **Pod (Backend):** Flask procesa la lógica, lee/escribe en `/data/avatars.db`.
+10. **Persistent Volume:** SQLite interactúa con el disco físico atado al Pod a través del PVC.
+
+### Ingress vs NodePort vs LoadBalancer
+- **NodePort:** Abre un puerto estático (usualmente en el rango 30000-32767) en *todos* los nodos físicos del clúster. Es primitivo, feo para los usuarios y poco seguro para exponer HTTP. Se usa mayormente para servicios internos muy específicos.
+- **LoadBalancer:** Instruye al proveedor de la nube (AWS, GCP) para que provisione un Balanceador de Carga de red nativo con una IP pública exclusiva. Es caro (se factura por cada servicio) y no entiende de rutas HTTP o dominios, solo de puertos (Capa 4).
+- **Ingress:** Es la forma inteligente de exponer aplicaciones web (Capa 7). Requieres solo un LoadBalancer físico (para el Ingress Controller) y luego puedes enrutar miles de servicios distintos basándote en la URL, subdominios, o *paths*, centralizando el SSL/HTTPS.
