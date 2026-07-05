@@ -17,7 +17,7 @@ spec:
       containers:
         - name: api
           image: ghcr.io/mati2173/cf-avatars-generator-api
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 5000
           resources:

@@ -180,3 +180,19 @@ kubectl kustomize k8s/overlays/local/
 # Aplicar el entorno completo al clúster (Nota la bandera -k en lugar de -f)
 kubectl apply -k k8s/overlays/local/
 ```
+
+## Estrategia GitOps y Tags Inmutables
+
+Nuestra arquitectura Kustomize está diseñada con principios de **Infraestructura Inmutable** para posibilitar flujos maduros de CI/CD (Continuous Deployment/GitOps):
+
+### 1. Desacoplamiento del Tag de Imagen
+Los manifiestos en `k8s/base/` **no declaran ninguna versión (tag)** de las imágenes Docker (ej. `ghcr.io/...-api`). La base es un contrato puramente estructural.
+
+La inyección de la versión específica ocurre **dinámicamente en cada entorno** (ej. `overlays/local/kustomization.yaml` o durante la ejecución en CI mediante `kustomize edit set image`). Esto permite que un pipeline o un agente GitOps (como ArgoCD) actualice la versión desplegada sin mutar jamás el código fundacional.
+
+### 2. imagePullPolicy: IfNotPresent
+A diferencia de configuraciones estándar que usan `imagePullPolicy: Always`, nosotros forzamos explícitamente `IfNotPresent`.
+¿Por qué?
+- **Tags inmutables:** Asumimos que los tags de nuestras imágenes (e.g. `sha-5a3d9bc` o `v1.2.0`) son inmutables. Nunca sobreescribimos un tag publicado.
+- **Resiliencia (Anti-Rate Limiting):** Si un nodo de Kubernetes se reinicia y vuelve a levantar el Pod, con `Always` el clúster intentaría forzar una conexión a Internet (Docker Hub / GHCR) para verificar si la imagen cambió. Si el registry está caído o nos aplica *rate-limiting*, el Pod crashearía a pesar de ya tener la imagen sana en disco (`ErrImagePull`).
+- **Performance local y CI:** Al usar `IfNotPresent`, los tests E2E locales (Kind) cargan imágenes pre-cacheadas y levantan Pods en milisegundos, totalmente aislados de la red.
