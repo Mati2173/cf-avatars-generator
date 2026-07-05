@@ -58,6 +58,24 @@ jobs:
             type=edge,branch=develop
             type=sha,format=short,prefix=sha-
 
+      - name: Build API image for Trivy scan
+        uses: docker/build-push-action@v5
+        with:
+          context: ./api
+          load: true
+          tags: local-api:test
+          cache-from: type=gha
+
+      - name: Run Trivy vulnerability scanner on API
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'local-api:test'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL'
+
       - name: Build and Push API image
         uses: docker/build-push-action@v5
         with:
@@ -76,6 +94,24 @@ jobs:
           tags: |
             type=edge,branch=develop
             type=sha,format=short,prefix=sha-
+
+      - name: Build Web image for Trivy scan
+        uses: docker/build-push-action@v5
+        with:
+          context: ./web
+          load: true
+          tags: local-web:test
+          cache-from: type=gha
+
+      - name: Run Trivy vulnerability scanner on Web
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'local-web:test'
+          format: 'table'
+          exit-code: '1'
+          ignore-unfixed: true
+          vuln-type: 'os,library'
+          severity: 'CRITICAL'
 
       - name: Build and Push Web image
         uses: docker/build-push-action@v5
