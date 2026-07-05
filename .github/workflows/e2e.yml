@@ -67,3 +67,22 @@ jobs:
         run: |
           kubectl rollout status deployment/avatars-generator-api -n avatars-generator --timeout=120s
           kubectl rollout status deployment/avatars-generator-web -n avatars-generator --timeout=120s
+
+      - name: Functional Smoke Tests
+        run: |
+          # 1. Iniciar túnel de red hacia el servicio K8s en background
+          kubectl port-forward svc/avatars-generator-api -n avatars-generator 8080:5000 &
+          PORT_FORWARD_PID=$!
+          
+          # 2. Dar tiempo para que el túnel se establezca
+          sleep 3
+          
+          # 3. Ejecutar los tests capturando su código de salida
+          make test-api HOST_URL=http://localhost:8080
+          TEST_EXIT_CODE=$?
+          
+          # 4. Limpieza (Cleanup) del proceso en background
+          kill $PORT_FORWARD_PID
+          
+          # 5. Retornar el código de salida real del test para no enmascarar errores
+          exit $TEST_EXIT_CODE
