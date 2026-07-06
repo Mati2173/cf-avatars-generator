@@ -21,4 +21,9 @@ variable "private_subnet_cidrs" {
 variable "azs" {
   description = "Lista de Zonas de Disponibilidad"
   type        = list(string)
+
+  validation {
+    condition     = length(var.azs) >= 2
+    error_message = "Debes proveer al menos 2 Zonas de Disponibilidad para Alta Disponibilidad (Multi-AZ)."
+  }
 }
