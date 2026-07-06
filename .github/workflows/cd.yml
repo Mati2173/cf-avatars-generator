@@ -100,3 +100,19 @@ jobs:
       - name: Deploy to K8s via Kustomize
         run: |
           kubectl apply -k k8s/overlays/staging
+
+      - name: Verify Rollout Status
+        run: |
+          kubectl rollout status deployment/avatars-generator-api -n avatars-generator --timeout=120s
+          kubectl rollout status deployment/avatars-generator-web -n avatars-generator --timeout=120s
+
+      - name: Functional Smoke Tests (E2E on EKS)
+        run: |
+          kubectl port-forward svc/avatars-generator-api -n avatars-generator 8080:5000 &
+          PORT_FORWARD_PID=$!
+          
+          # Aseguramos que el proceso en background muera sin importar cómo termine el script
+          trap 'kill $PORT_FORWARD_PID 2>/dev/null || true' EXIT
+          
+          sleep 3
+          make test-api HOST_URL=http://localhost:8080
