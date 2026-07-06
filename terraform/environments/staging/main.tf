@@ -34,3 +34,13 @@ module "vpc" {
   # Asignamos explícitamente en qué zonas queremos que vivan
   azs = ["${var.aws_region}a", "${var.aws_region}b"]
 }
+
+# --- LLAMADA AL MÓDULO EKS ---
+
+module "eks" {
+  source = "../../modules/eks"
+
+  environment        = var.environment
+  public_subnet_ids  = module.vpc.public_subnet_ids
+  private_subnet_ids = module.vpc.private_subnet_ids
+}
