@@ -101,8 +101,5 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Dummy Secret for Kustomize
-        run: cp k8s/overlays/staging/.env.secret.example k8s/overlays/staging/.env.secret
-
       - name: Validate Staging Manifests
         run: kubectl kustomize k8s/overlays/staging > /dev/null
