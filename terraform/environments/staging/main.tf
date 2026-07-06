@@ -51,6 +51,6 @@ module "github_oidc" {
   source = "../../modules/github-oidc"
 
   environment   = var.environment
-  github_repo   = "mati2173/cf-avatars-generator"
+  github_repo   = "Mati2173/cf-avatars-generator"
   github_branch = "staging"
 }
