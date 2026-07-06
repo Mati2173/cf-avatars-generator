@@ -60,3 +60,24 @@ resource "aws_eks_node_group" "main" {
     aws_iam_role_policy_attachment.ecr_readonly
   ]
 }
+
+# ==========================================
+# 3. PERMISOS DE ACCESO PARA CI/CD (EKS ACCESS ENTRIES)
+# ==========================================
+resource "aws_eks_access_entry" "ci_cd" {
+  count         = var.ci_cd_role_arn != "" ? 1 : 0
+  cluster_name  = aws_eks_cluster.main.name
+  principal_arn = var.ci_cd_role_arn
+  type          = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "ci_cd_admin" {
+  count         = var.ci_cd_role_arn != "" ? 1 : 0
+  cluster_name  = aws_eks_cluster.main.name
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+  principal_arn = var.ci_cd_role_arn
+
+  access_scope {
+    type = "cluster"
+  }
+}
