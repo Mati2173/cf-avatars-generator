@@ -1,4 +1,12 @@
 terraform {
+  backend "s3" {
+    bucket       = "avatars-generator-tfstate-8cac6d82"
+    key          = "env/staging/terraform.tfstate"
+    region       = "us-east-1"
+    encrypt      = true
+    use_lockfile = true
+  }
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
