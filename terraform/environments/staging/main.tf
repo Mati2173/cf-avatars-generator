@@ -44,3 +44,13 @@ module "eks" {
   public_subnet_ids  = module.vpc.public_subnet_ids
   private_subnet_ids = module.vpc.private_subnet_ids
 }
+
+# --- LLAMADA AL MÓDULO GITHUB OIDC ---
+
+module "github_oidc" {
+  source = "../../modules/github-oidc"
+
+  environment   = var.environment
+  github_repo   = "mati2173/cf-avatars-generator"
+  github_branch = "staging"
+}

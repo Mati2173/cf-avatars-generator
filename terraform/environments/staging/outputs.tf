@@ -12,3 +12,8 @@ output "private_subnet_ids" {
   description = "IDs de las subredes privadas"
   value       = module.vpc.private_subnet_ids
 }
+
+output "github_actions_role_arn" {
+  description = "El ARN del rol OIDC para GitHub Actions"
+  value       = module.github_oidc.role_arn
+}

@@ -23,6 +23,9 @@ resource "aws_eks_cluster" "main" {
     bootstrap_cluster_creator_admin_permissions = true
   }
 
+  # Habilitamos logs del Control Plane hacia CloudWatch (Cero overhead en Workers)
+  enabled_cluster_log_types = ["api", "audit", "authenticator", "controllerManager", "scheduler"]
+
   # Terraform debe esperar a que el rol tenga permisos antes de intentar crear el clúster
   depends_on = [
     aws_iam_role_policy_attachment.cluster_policy
