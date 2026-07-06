@@ -9,6 +9,8 @@ resources:
 
 patches:
   - path: patch-api-storage.yaml
+  - path: patch-api-strategy.yaml
+  - path: patch-web-strategy.yaml
 
 
 images:
