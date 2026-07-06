@@ -31,7 +31,9 @@ resource "aws_subnet" "public" {
   map_public_ip_on_launch = true
 
   tags = merge(local.common_tags, {
-    Name = "public-subnet-${var.environment}-${each.key}"
+    Name                                               = "public-subnet-${var.environment}-${each.key}"
+    "kubernetes.io/role/elb"                           = "1"
+    "kubernetes.io/cluster/${var.environment}-cluster" = "shared"
   })
 }
 
@@ -44,7 +46,9 @@ resource "aws_subnet" "private" {
   map_public_ip_on_launch = false # Comportamiento explícitamente documentado
 
   tags = merge(local.common_tags, {
-    Name = "private-subnet-${var.environment}-${each.key}"
+    Name                                               = "private-subnet-${var.environment}-${each.key}"
+    "kubernetes.io/role/internal-elb"                  = "1"
+    "kubernetes.io/cluster/${var.environment}-cluster" = "shared"
   })
 }
 
