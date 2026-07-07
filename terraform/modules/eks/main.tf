@@ -57,7 +57,24 @@ resource "aws_eks_node_group" "main" {
     aws_eks_cluster.main,
     aws_iam_role_policy_attachment.worker_node_policy,
     aws_iam_role_policy_attachment.cni_policy,
-    aws_iam_role_policy_attachment.ecr_readonly
+    aws_iam_role_policy_attachment.ecr_readonly,
+    aws_iam_role_policy_attachment.ebs_csi_driver
+  ]
+}
+
+# ==========================================
+# 3. ADDONS DEL CLUSTER
+# ==========================================
+resource "aws_eks_addon" "ebs_csi" {
+  cluster_name = aws_eks_cluster.main.name
+  addon_name   = "aws-ebs-csi-driver"
+  
+  # Resolvemos conflictos en caso de que ya exista parcialmente
+  resolve_conflicts_on_create = "OVERWRITE"
+  resolve_conflicts_on_update = "OVERWRITE"
+  
+  depends_on = [
+    aws_eks_node_group.main
   ]
 }
 
