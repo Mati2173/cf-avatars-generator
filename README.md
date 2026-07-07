@@ -1,563 +1,136 @@
-# 👤 Avatares — Generador de Avatares
+# 👤 Avatares — Proyecto DevOps Completo
 
-Aplicación full-stack para generar y personalizar avatares SVG. Proyecto base para el curso de DevOps: incluye backend, frontend, contenedores, CI/CD, observabilidad y load testing. **El desafío de los estudiantes es llevar esta aplicación a Kubernetes.**
+Aplicación full-stack nativa en la nube (Cloud-Native) diseñada para generar y personalizar avatares SVG. Este proyecto ha sido llevado desde un simple desarrollo local hasta un sistema orquestado en **Kubernetes (AWS EKS)** con **CI/CD, Seguridad (IRSA/OIDC) y Observabilidad**, resolviendo los desafíos del Bootcamp DevOps.
 
 ![Avatares App](./docs/avatar.png)
 
 ---
 
-## Tabla de Contenidos
+## 🏗️ Arquitectura de Alto Nivel
 
-- [Arquitectura](#arquitectura)
-- [Stack Tecnológico](#stack-tecnológico)
-- [Inicio Rápido](#inicio-rápido)
-- [Desarrollo Local](#desarrollo-local)
-- [API Endpoints](#api-endpoints)
-- [Funcionalidades](#funcionalidades)
-- [Docker](#docker)
-- [Tests](#tests)
-- [Observabilidad](#observabilidad)
-- [Load Testing](#load-testing)
-- [Estructura del Proyecto](#estructura-del-proyecto)
-- [Comandos Disponibles](#comandos-disponibles)
-- [Desafío: Kubernetes y CI/CD](#desafío-kubernetes-y-cicd)
-
----
-
-## Arquitectura
-
-```
-┌─────────────┐       ┌──────────────┐       ┌────────────┐
-│   Browser   │──────▶│  Nginx (web) │──/api/▶│ Flask (api)│
-│             │◀──────│  React SPA   │◀───────│ Gunicorn   │
-└─────────────┘  :8080└──────────────┘        └─────┬──────┘
-                                                    │
-                                              ┌─────▼──────┐
-                                              │   SQLite    │
-                                              │  (gallery)  │
-                                              └────────────┘
-```
-
-- **Web**: Nginx sirve el build estático de React y hace proxy reverso de `/api/*` al backend.
-- **API**: Flask + Gunicorn genera avatares SVG con la librería `python-avatars` y persiste la galería en SQLite.
-- **Red interna**: El API no se expone al host, solo es accesible desde el contenedor web a través de la red Docker.
-
----
-
-## Stack Tecnológico
-
-| Componente | Tecnología | Versión |
-|-----------|-----------|---------|
-| Frontend | React + Vite | 19.x / 6.x |
-| Backend | Flask + Gunicorn | 3.x / 23.x |
-| Avatares | python-avatars | 1.4.x |
-| Base de datos | SQLite | 3.x |
-| Contenedores | Docker + Compose | latest |
-| Monitoreo | Prometheus + Grafana | 3.4 / 11.6 |
-| Load Testing | k6 | 0.57 |
-| Tests Backend | pytest | 8.x |
-| Tests Frontend | Vitest + Testing Library | 3.x / 16.x |
-
----
-
-## Inicio Rápido
-
-### Prerrequisitos
-
-- [Docker Desktop](https://www.docker.com/products/docker-desktop/) instalado y corriendo
-- [Make](https://www.gnu.org/software/make/) (viene preinstalado en macOS y Linux)
-
-### Levantar la aplicación
-
-```bash
-git clone <repo-url>
-cd avatares-devops
-make up
-```
-
-Abrir en el navegador: **http://localhost:8080**
-
-### Verificar que todo funciona
-
-```bash
-make health     # Estado del API
-make test-api   # Probar todos los endpoints
-```
-
----
-
-## Desarrollo Local
-
-Si quieres desarrollar sin Docker, puedes correr cada servicio por separado.
-
-### Backend (API)
-
-```bash
-cd api
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python install_parts.py          # Instalar SVGs custom (solo la primera vez)
-export FLASK_APP=app.py
-export DB_PATH=./avatars.db
-flask run                        # → http://localhost:5000
-```
-
-### Frontend (Web)
-
-```bash
-cd web
-npm install
-npm run dev                      # → http://localhost:5173
-```
-
-El servidor de desarrollo de Vite tiene un proxy configurado que redirige `/api/*` al backend en `http://localhost:5000`. Ambos servicios deben estar corriendo simultáneamente.
-
-> **Variable de entorno opcional**: `VITE_API_URL` permite cambiar la URL del backend (por defecto `http://localhost:5000`).
-
----
-
-## API Endpoints
-
-| Método | Ruta | Descripción | Respuesta |
-|--------|------|-------------|-----------|
-| `GET` | `/api/avatar` | Renderizar avatar SVG | `image/svg+xml` |
-| `GET` | `/api/avatar/spec` | Opciones de personalización | JSON con parts, groups, values |
-| `GET` | `/api/gallery` | Listar avatares guardados (últimos 50) | JSON array |
-| `POST` | `/api/gallery` | Guardar avatar en galería | JSON `{id, name, params, created_at}` |
-| `DELETE` | `/api/gallery/:id` | Eliminar avatar de galería | 204 No Content |
-| `GET` | `/health` | Estado del servicio + uptime | JSON `{status, service, uptime_seconds}` |
-| `GET` | `/ready` | Readiness check para orquestadores | 204 No Content |
-| `GET` | `/metrics` | Métricas en formato Prometheus | text/plain |
-
-### Ejemplos
-
-```bash
-# Generar un avatar con ojos sorprendidos y boca sonriente
-curl "http://localhost:8080/api/avatar?eyes=SURPRISED&mouth=SMILE" -o avatar.svg
-
-# Ver opciones disponibles
-curl http://localhost:8080/api/avatar/spec | python3 -m json.tool
-
-# Guardar en galería
-curl -X POST http://localhost:8080/api/gallery \
-  -H "Content-Type: application/json" \
-  -d '{"name": "Mi Avatar", "params": "eyes=DEFAULT&mouth=SMILE"}'
-
-# Ver métricas
-curl http://localhost:8080/metrics
-```
-
----
-
-## Funcionalidades
-
-### Editor de Avatares
-- Personalización de ojos, cejas, boca, pelo, barba y colores
-- Botón **Aleatorio** 🎲 para generar combinaciones random
-- Botón **Descargar** 💾 para exportar como SVG
-- Vista previa en tiempo real con efecto glow animado
-
-### Galería
-- Guardar avatares con nombre
-- Grid visual con cards y fechas
-- Eliminar avatares guardados
-- Persistencia en SQLite (sobrevive reinicios del contenedor gracias al volumen Docker)
-
-### Navegación
-- Tabs Editor / Galería en el header
-- Toast notifications para feedback de acciones
-- Footer con links directos a Health y Métricas
-- Diseño responsive (desktop, tablet, mobile)
-
----
- 
-## Variables de Entorno
- 
-El proyecto utiliza variables de entorno opcionales mediante Docker Compose. La aplicación funciona con valores por defecto, pero puedes personalizarla creando un archivo `.env`:
- 
-```bash
-cp .env.example .env
-```
- 
-Docker Compose cargará automáticamente estas variables durante la ejecución de los distintos stacks. Esto permite:
- 
-- Separar configuración del código
-- Facilitar despliegues multi-entorno
-- Compatibilidad con CI/CD
-- Parametrización flexible de servicios Docker
-
-**Nota**: Si el archivo `.env` no existe, la aplicación seguirá funcionando normalmente con sus valores por defecto.
-
----
-
-## Docker
-
-### Arquitectura de contenedores
-
-```yaml
-services:
-  api:    # Python 3.12 + Gunicorn (2 workers)
-  web:    # Node 22 (build) → Nginx (producción)
-```
-
-- **API Dockerfile**: imagen `python:3.12-slim`, instala dependencias, pre-instala SVGs custom en build time, corre como usuario no-root.
-- **Web Dockerfile**: multi-stage build — Node 22 Alpine para `npm ci && npm run build`, luego Nginx Alpine para servir los estáticos.
-- **Nginx**: sirve el SPA, proxy reverso `/api/*` al backend, gzip habilitado, cache de assets.
-
-### Volúmenes
-
-| Volumen | Uso |
-|---------|-----|
-| `api-data` | Base de datos SQLite de la galería (`/data/avatars.db`) |
-
-### Red
-
-Los servicios se comunican a través de la red `avatars-generator-net`. El API solo usa `expose` (no `ports`), así que no es accesible desde el host directamente — solo a través de Nginx.
-
-### Comandos Docker
-
-```bash
-make up        # Construir y levantar
-make down      # Detener
-make restart   # Reiniciar
-make logs      # Ver logs de todos los servicios
-make logs-api  # Ver logs solo del API
-make clean     # Eliminar todo (contenedores, imágenes, volúmenes)
-```
-
----
-
-## Tests
-
-### Backend — pytest (24 tests)
-
-```bash
-make test-backend
-```
-
-| Archivo | Tests | Cobertura |
-|---------|-------|-----------|
-| `test_avatar.py` | 10 | Render SVG, params válidos/inválidos, colores, spec completo |
-| `test_gallery.py` | 10 | CRUD galería, validaciones, orden, truncado de nombres |
-| `test_health.py` | 4 | `/ready`, `/health`, `/metrics`, contadores |
-
-### Frontend — Vitest + Testing Library (20 tests)
-
-```bash
-make test-frontend
-```
-
-| Archivo | Tests | Cobertura |
-|---------|-------|-----------|
-| `App.test.jsx` | 9 | Loading, error, editor, header, botones, tabs, footer, avatar |
-| `Parts.test.jsx` | 6 | Render, grupos, selectores, color swatches, onChange |
-| `Gallery.test.jsx` | 5 | Loading, vacío, render items, src correcto, error handling |
-
-### Ejecutar todos
-
-```bash
-make test
-```
-
----
-
-## Observabilidad
-
-La aplicación expone un endpoint `/metrics` compatible con Prometheus con las siguientes métricas:
-
-| Métrica | Tipo | Descripción |
-|---------|------|-------------|
-| `avatars_generated_total` | counter | Total de avatares renderizados |
-| `avatars_saved_total` | counter | Total de avatares guardados en galería |
-| `http_requests_total` | counter | Total de requests HTTP |
-| `http_errors_total` | counter | Total de errores HTTP |
-| `uptime_seconds` | gauge | Segundos desde el inicio del proceso |
-
-### Levantar Prometheus + Grafana
-
-```bash
-make monitoring
-```
-
-| Servicio | URL | Credenciales |
-|----------|-----|-------------|
-| Aplicación | http://localhost:8080 | — |
-| Prometheus | http://localhost:9090 | — |
-| Grafana | http://localhost:3000 | admin / admin |
-
-### Dashboard de Grafana
-
-El dashboard **"Avatares — API Dashboard"** se carga automáticamente (auto-provisioning) con:
-
-- **Resumen**: uptime, total requests, avatares generados, errores
-- **Tráfico en tiempo real**: requests/s y errores/s (gráficos de línea)
-- **Actividad de avatares**: generados vs guardados, tasa de error
-
-![Dashboard Grafana](./docs/tablero.png)
-
-> Los archivos de provisioning están en `monitoring/grafana/`. Prometheus scrapea `/metrics` cada 15 segundos.
-
-### Detener monitoreo
-
-```bash
-cd monitoring/ && docker compose -f docker-compose.monitoring.yml down
-```
-
----
-
-## Load Testing
-
-Load tests con [k6](https://k6.io/) para generar tráfico y ver las métricas en acción.
-
-### Test rápido (30 segundos)
-
-```bash
-make load-quick
-```
-
-Sube a 10 usuarios virtuales que generan avatares y consultan health.
-
-### Test completo (2 minutos)
-
-```bash
-make load-full
-```
-
-Ejecuta 3 escenarios simultáneos:
-
-| Escenario | Usuarios | Qué hace |
-|-----------|----------|----------|
-| `browse` | 5 constantes | Consulta spec y health |
-| `generate` | 0 → 20 → 0 (rampa) | Genera avatares aleatorios |
-| `gallery` | 5 req/s | Save + list + delete en galería |
-
-### Thresholds automáticos
-
-- p95 latencia < 500ms
-- p99 latencia < 1000ms
-- Tasa de error < 5%
-
-### Reportes HTML
-
-Al finalizar cada test se genera un reporte HTML en `loadtest/reports/` que se abre automáticamente en el navegador. Incluye:
-
-- Cards de resumen (requests, latencia, thresholds)
-- Tabla de thresholds con PASS/FAIL
-- Detalle de timing por métrica (avg, min, med, p90, p95, max)
-- Counters y rates
-
-![Reporte k6](./docs/reporte-load.png)
-
-> **Tip**: Levanta el monitoreo (`make monitoring`) antes de correr los load tests para ver las métricas en tiempo real en Grafana.
-
----
-
-## Estructura del Proyecto
+El proyecto emplea una arquitectura clásica de 3 capas adaptada para contenedores:
 
 ```text
-avatares-devops/
-├── api/                          # Backend Python
-│   ├── Dockerfile                # Python 3.12 slim + Gunicorn
-│   ├── Dockerfile.test           # Imagen para ejecución de tests
-│   ├── app.py                    # Aplicación Flask (avatar, gallery, metrics)
-│   ├── __init__.py
-│   ├── install_parts.py          # Pre-instalación de SVGs custom
-│   ├── requirements.txt          # Dependencias de producción
-│   ├── requirements-test.txt     # Dependencias de test (pytest)
-│   ├── docker_shirt.svg          # SVG custom: camiseta Docker
-│   ├── tilt_shirt.svg            # SVG custom: camiseta Tilt
-│   └── tests/                    # Tests unitarios
-│       ├── __init__.py
-│       ├── conftest.py
-│       ├── test_avatar.py
-│       ├── test_gallery.py
-│       └── test_health.py
-│
-├── web/                          # Frontend React
-│   ├── Dockerfile                # Multi-stage: Node 22 → Nginx
-│   ├── Dockerfile.test           # Imagen para tests frontend
-│   ├── nginx.conf                # Proxy reverso + SPA fallback
-│   ├── package.json
-│   ├── package-lock.json
-│   ├── vite.config.js            # Vite + Vitest config
-│   ├── index.html
-│   └── src/
-│       ├── main.jsx              # Punto de entrada React
-│       ├── App.jsx               # Componente principal (editor + galería)
-│       ├── Parts.jsx             # Editor de partes del avatar
-│       ├── Gallery.jsx           # Galería de avatares guardados
-│       ├── App.css               # Estilos (tema oscuro, glassmorphism)
-│       ├── index.css             # Variables CSS globales
-│       ├── favicon.svg
-│       ├── App.test.jsx          # Tests del App
-│       ├── Parts.test.jsx        # Tests del editor
-│       ├── Gallery.test.jsx      # Tests de la galería
-│       └── test/
-│           ├── mocks.js          # Mocks para tests
-│           └── setup.js          # Setup global Vitest
-│
-├── monitoring/                   # Stack de observabilidad desacoplado
-│   ├── prometheus.yml            # Config de scraping
-│   └── grafana/
-│       ├── dashboards/
-│       │   └── avatars.json      # Dashboard auto-provisionado
-│       └── provisioning/
-│           ├── datasources/
-│           │   └── prometheus.yml
-│           └── dashboards/
-│               └── dashboards.yml
-│
-├── loadtest/                     # Load testing con k6
-│   ├── quick.js                  # Test rápido (30s)
-│   ├── script.js                 # Test completo (2min, 3 escenarios)
-│   ├── report.js                 # Generador de reportes HTML
-│   └── reports/                  # Reportes generados (gitignored)
-│
-├── docs/                         # Documentación técnica y evidencias
-│   ├── DEVOPS_EVOLUTION_TESTING.md
-│   ├── DEVOPS_INFRA_CHANGES.md
-│   └── *.png                     # Capturas adicionales
-│
-├── docker-compose.yml            # Servicios principales (api + web)
-├── docker-compose.k6.yml         # Load testing con k6
-├── docker-compose.monitoring.yml # Stack de observabilidad
-├── Makefile                      # Comandos automatizados
-├── .env.example                  # Template de variables de entorno
-├── ABOUT.md                      # Información adicional del proyecto
-└── README.md
+┌────────────────┐       ┌───────────────┐       ┌──────────────┐
+│  Browser / DNS │──────▶│ Nginx (Web)   │──/api/▶ Flask (API)  │
+│  (AWS ALB)     │◀──────│ React SPA     │◀──────│ Gunicorn     │
+└────────────────┘  :80  └───────────────┘       └──────┬───────┘
+                                                        │
+                                                 ┌──────▼───────┐
+                                                 │ SQLite (EBS) │
+                                                 │ (Persistente)│
+                                                 └──────────────┘
 ```
 
----
-
-## Comandos Disponibles
-
-```bash
-make help
-```
-
-| Comando | Descripción |
-|---------|-------------|
-| `make up` | Construir y levantar todos los servicios |
-| `make down` | Detener todos los servicios |
-| `make restart` | Reiniciar todos los servicios |
-| `make logs` | Ver logs en tiempo real |
-| `make logs-api` | Ver logs solo del API |
-| `make logs-web` | Ver logs solo del frontend |
-| `make build` | Construir imágenes sin levantar |
-| `make clean` | Eliminar contenedores, imágenes y volúmenes de todos los stacks |
-| `make test` | Ejecutar todos los tests (backend + frontend) |
-| `make test-backend` | Tests unitarios del backend (pytest) |
-| `make test-frontend` | Tests unitarios del frontend (vitest) |
-| `make test-api` | Probar endpoints del API (requiere servicios corriendo) |
-| `make health` | Verificar estado del API |
-| `make metrics` | Ver métricas Prometheus |
-| `make monitoring` | Levantar Prometheus + Grafana |
-| `make monitoring-down` | Detener stack de monitoreo |
-| `make load-quick` | Load test rápido (30s, 10 usuarios) |
-| `make load-full` | Load test completo (2min, 20 usuarios pico) |
+- **Frontend (`web`):** Single Page Application en React empaquetada como estático en un servidor NGINX optimizado y sin privilegios (rootless). Proxy inverso inyectado para `/api`.
+- **Backend (`api`):** API Python (Flask + Gunicorn) que procesa gráficos vectoriales y utiliza SQLite para la base de datos de galería.
+- **Almacenamiento:** Volúmenes dinámicos aprovisionados por el EBS CSI Driver de AWS para evitar pérdida de la base de datos durante reinicios de Pods.
 
 ---
 
-## Quickstart Kubernetes (Dev Local)
+## 🎨 Funcionalidades de la Aplicación
 
-Este proyecto utiliza **Kustomize** para gestionar la configuración de múltiples entornos, separando la aplicación pura (`base/`) de la infraestructura específica (`overlays/`).
+- **Editor de Avatares:** Personalización completa de rostros (ojos, cejas, boca, pelo, barba y colores) con vista previa SVG en tiempo real. Botón "Aleatorio" para combinaciones automáticas.
+- **Galería Persistente:** Posibilidad de guardar avatares favoritos, organizarlos en un grid y eliminarlos. Resiste reinicios de contenedores.
+- **API Endpoints Principales:**
+  - `GET /api/avatar` (Renderiza SVG paramétrico).
+  - `GET /api/gallery` y `POST /api/gallery` (CRUD de la base de datos).
+  - `GET /metrics` (Expone datos estándar para Prometheus).
+- **Diseño Moderno:** Frontend React con Glassmorphism, animaciones y diseño completamente responsive.
 
-Para levantar el entorno local completo en tu máquina:
+---
 
-1. **Configurar Dominio Local:**
-   Añade esta línea a tu archivo `/etc/hosts` (requiere `sudo`):
-   ```text
-   127.0.0.1 avatars-generator.local
-   ```
+## 🌍 Entornos y Escenarios de Ejecución
 
-2. **Crear el Clúster y el Ingress Controller:**
-   Usaremos `kind` mapeando los puertos locales para no requerir `sudo` ni chocar con servidores web existentes.
+El proyecto está diseñado para funcionar en cuatro escenarios progresivos, permitiendo a los desarrolladores probar el software y la infraestructura con seguridad antes de llegar a Producción.
+
+### 1. Desarrollo Local (Docker Compose)
+Ideal para desarrollo diario de código frontend/backend sin tener que lidiar con orquestadores pesados.
+
+- **Levantar:** `make up`
+- **Acceso:** `http://localhost:8080`
+- **Características:** Base de datos persistente mediante docker volumes, hot-reloading desactivado (orientado a testing completo). Documentación completa en [ABOUT.md](ABOUT.md).
+
+### 2. Pruebas de Orquestación (Kubernetes Local / Kind)
+El puente perfecto para el equipo de DevOps que necesita probar configuración Kustomize sin gastar dinero en AWS.
+
+- **Prerrequisitos:** Debes tener `kind` y `kubectl` instalados en tu máquina local.
+- **Levantar Clúster:** 
+  Utilizamos un archivo de configuración para mapear los puertos del Ingress:
+  ```bash
+  kind create cluster --name avatars-generator-cluster --config infra/kind/config.yaml
+  ```
+- **Instalar Ingress Controller (NGINX):**
+  ```bash
+  kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+  ```
+- **Configurar DNS Local:** Agrega `127.0.0.1 avatars-generator.local` a tu `/etc/hosts`.
+- **Desplegar la App:** 
+  ```bash
+  kubectl apply -k k8s/overlays/local
+  ```
+- **Acceso:** `http://avatars-generator.local:8081`
+- **Testing Local (K6):** Para lanzar pruebas de carga contra el entorno de Kind, debes setear la variable de entorno `TARGET_ENV=k8s`:
+  ```bash
+  make load-quick TARGET_ENV=k8s
+  ```
+- **Características:** Despliegue emulado de Kubernetes mediante contenedores locales. Revisa la guía exhaustiva en [docs/DEVOPS_K8S.md](docs/DEVOPS_K8S.md).
+
+### 3. Entorno de Staging (AWS EKS)
+El entorno cloud en tiempo real, mantenido automáticamente por Integración y Despliegue Continuo (CI/CD).
+
+- **Estructura:** Cluster EKS (Data plane aislado en subredes privadas), NAT Gateway. Aprovisionado completamente en Terraform.
+- **Limitaciones de Staging:** Para ahorrar costos, se emplean instancias EC2 pequeñas (`t3.small`). El despliegue de Kubernetes utiliza estrategia Kustomize `Recreate` para evitar saturar las interfaces de red (ENI limit).
+- **Despliegue:** Automático mediante Merge a la rama `staging` usando Autenticación **OIDC Passwordless** contra AWS.
+
+### 4. Producción (Flujo de Release)
+**Nota importante:** Actualmente no existe un entorno físico de Producción (clúster EKS) desplegado en AWS por razones de costos de la cuenta. Sin embargo, el **flujo técnico está 100% resuelto**.
+- **Cómo funciona:** Al crear un Tag Semántico en Git (Ej. `v1.2.0`), el pipeline `release.yml` entra en acción, reconstruye artefactos optimizados y los publica oficial y permanentemente en GHCR, listos para que cualquier clúster productivo futuro pueda extraerlos de forma confiable.
+
+---
+
+## ⚡ Guía Rápida (Quickstart)
+
+Para probar la aplicación en tu máquina de la forma más sencilla:
+
+1. **Clona el repositorio**
    ```bash
-   # Crear clúster con mapeo de puertos 8081 y 8443
-   kind create cluster --name avatars-generator-cluster --config infra/kind/config.yaml
-   
-   # Instalar NGINX Ingress Controller
-   kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
-   
-   # Esperar a que el Ingress esté listo
-   kubectl get pods -n ingress-nginx -w
+   git clone https://github.com/Mati2173/cf-avatars-generator.git
+   cd cf-avatars-generator
    ```
-
-3. **Desplegar la Aplicación (Kustomize):**
+2. **Levanta con Make/Docker**
    ```bash
-   # Configurar credenciales locales falsas
-   # (Contiene API_KEY, una variable dummy usada para validar inyección de Secrets)
-   cp k8s/overlays/local/.env.secret.example k8s/overlays/local/.env.secret
-
-   # Aplicar el overlay local (inyecta Ingress, Alias DNS y volúmenes locales)
-   kubectl apply -k k8s/overlays/local/
-   
-   # Esperar a que los Pods de la aplicación estén "Running"
-   kubectl get pods -n avatars-generator -w
+   make up
    ```
-
-4. **Acceder:**
-   Abre en tu navegador: `http://avatars-generator.local:8081`
-
-Para entender a fondo la arquitectura, el flujo de red (Ingress -> Service -> Pod -> ExternalName) y los comandos de debugging, revisa el manual detallado en: **[docs/DEVOPS_K8S.md](./docs/DEVOPS_K8S.md)**.
+3. **Pruébalo**
+   Abre [http://localhost:8080](http://localhost:8080) en tu navegador. Puedes lanzar tests de humo mediante `make test-api`.
 
 ---
 
-## Desafío: Kubernetes y CI/CD
+## 🔗 Índice Analítico de Documentación
 
-> **Este es el objetivo principal del proyecto.** Todo lo anterior es la base que ya funciona en Docker. El desafío es implementar las prácticas DevOps para llevar esta aplicación a producción.
+Esta arquitectura requirió el ensamblaje de múltiples dominios DevOps. Explora cada uno de ellos a profundidad en sus respectivos módulos:
 
-### 1. CI/CD Pipeline
-
-Crear un pipeline de integración y despliegue continuo usando **GitHub Actions**, **GitLab CI**, o **Jenkins**:
-
-- Ejecutar los tests unitarios (backend y frontend) en cada push
-- Construir las imágenes Docker
-- Subir las imágenes a un registry (Docker Hub, GHCR, ECR)
-- Desplegar automáticamente a staging/producción
-
-> **Pista**: los comandos `make test-backend`, `make test-frontend` y `make build` ya están listos para usar en un pipeline. El endpoint `make test-api` sirve como smoke test post-deploy.
-
-### 2. Kubernetes
-
-Crear los manifests necesarios para desplegar la aplicación en un clúster:
-
-- **Deployments** para `api` y `web`
-- **Services** para comunicación interna
-- **Ingress** para exponer la aplicación
-- **PersistentVolumeClaim** para la base de datos SQLite
-- **ConfigMaps** y/o **Secrets** para variables de entorno
-
-### 3. Observabilidad en el clúster
-
-- Desplegar Prometheus y Grafana en Kubernetes
-- Configurar el scraping de `/metrics` usando annotations
-- Importar el dashboard de Grafana incluido en `monitoring/grafana/dashboards/`
-
-### 4. Infraestructura como Código (bonus)
-
-- Usar **Terraform** para provisionar la infraestructura (VPC, clúster, etc.)
-- Usar **Helm** para empaquetar los manifests de Kubernetes
-
-### Pistas técnicas
-
-- El servicio `web` (Nginx) necesita resolver el nombre `api` para el proxy reverso. En Kubernetes, esto se logra con un Service de tipo ClusterIP llamado `api`.
-- El API necesita un volumen persistente para SQLite. Considerar si SQLite es adecuado para múltiples réplicas (spoiler: no lo es — investigar alternativas).
-- Los endpoints `/ready` y `/health` ya están implementados y listos para usar como `readinessProbe` y `livenessProbe`.
-- El endpoint `/metrics` está listo para ser scrapeado por Prometheus.
-- Las imágenes Docker ya están optimizadas para producción (multi-stage, usuario no-root, health checks).
-
-### Herramientas sugeridas
-
-- **Minikube** / **k3s** / **Kind** para clúster local
-- **kubectl** para gestión del clúster
-- **GitHub Actions** / **GitLab CI** / **Jenkins** para CI/CD
-- **Helm** para empaquetar manifests
-- **Terraform** para provisionar infraestructura en la nube
+* **[Kustomize & Kubernetes](k8s/README.md):** Cómo abstrajimos la configuración (`base/` vs `overlays/`).
+* **[Infraestructura como Código (Terraform)](terraform/README.md):** Módulos AWS, VPC, EKS, IRSA y State locking nativo.
+* **[Pipelines CI/CD y Flujo Git](.github/README.md):** Shift-left testing, despliegues sin secretos (OIDC) y flujos GitHub Actions.
+* **[Manual de Operaciones y Troubleshooting](docs/OPERATIONS.md):** Comandos imprescindibles y arquitectura técnica en el día a día.
 
 ---
 
-## Más Información
+## 📖 Bitácora DevOps (Evolución Arquitectónica)
 
-Ver [ABOUT.md](./ABOUT.md) para instrucciones adicionales sobre cada componente.
+A lo largo del proyecto, la infraestructura fue iterando, mejorando y corrigiendo errores clásicos de escalado y redes. Estos documentos narran de forma transparente (a modo de portfolio) dichas decisiones y evoluciones:
+
+- [Historia 1: Transición del Testing local a Docker](docs/DEVOPS_EVOLUTION_TESTING.md)
+- [Historia 2: Corrección de healthchecks e Infraestructura Base](docs/DEVOPS_INFRA_CHANGES.md)
+- [Historia 3: El paso a Kubernetes (Local)](docs/DEVOPS_K8S.md)
+
+---
+
+## 📈 Observabilidad y Rendimiento
+
+La aplicación expone un endpoint `/metrics` estandarizado para Prometheus y se provee load-testing automatizado de fábrica:
+
+- **Monitoreo Local:** Ejecuta `make monitoring` para desplegar Prometheus + Grafana y ver un Dashboard auto-aprovisionado.
+- **Load Testing (k6):** `make load-quick` somete a la API a pruebas de carga locales para observar cómo reaccionan las métricas doradas (latencia, tráfico, errores).
