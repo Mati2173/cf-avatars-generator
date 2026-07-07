@@ -43,8 +43,8 @@ resource "aws_eks_node_group" "main" {
   # MUY IMPORTANTE: Los workers SOLO viven en las subredes privadas.
   subnet_ids = var.private_subnet_ids
 
-  # Tamaño de instancia reducido (Restricción Free Tier)
-  instance_types = ["t3.micro"]
+  # Tamaño de instancia incrementado a t3.small para soportar EBS CSI Driver
+  instance_types = ["t3.small"]
 
   scaling_config {
     desired_size = 2 # Uno en cada zona de disponibilidad
@@ -66,8 +66,9 @@ resource "aws_eks_node_group" "main" {
 # 3. ADDONS DEL CLUSTER
 # ==========================================
 resource "aws_eks_addon" "ebs_csi" {
-  cluster_name = aws_eks_cluster.main.name
-  addon_name   = "aws-ebs-csi-driver"
+  cluster_name             = aws_eks_cluster.main.name
+  addon_name               = "aws-ebs-csi-driver"
+  service_account_role_arn = aws_iam_role.ebs_csi.arn
   
   # Resolvemos conflictos en caso de que ya exista parcialmente
   resolve_conflicts_on_create = "OVERWRITE"
