@@ -6,6 +6,7 @@ namespace: avatars-generator
 resources:
   - ../../base
   - alias.yaml
+  - storage-pvc.yaml
 
 patches:
   - path: patch-api-storage.yaml

@@ -12,4 +12,5 @@ spec:
               mountPath: /data
       volumes:
         - name: data-volume
-          emptyDir: {}
+          persistentVolumeClaim:
+            claimName: avatars-generator-data

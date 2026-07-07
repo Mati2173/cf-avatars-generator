@@ -43,9 +43,9 @@ module "eks" {
   environment        = var.environment
   public_subnet_ids  = module.vpc.public_subnet_ids
   private_subnet_ids = module.vpc.private_subnet_ids
-  
+
   # Le pasamos el ARN del rol de GitHub Actions para que EKS le dé permisos
-  ci_cd_role_arn     = module.github_oidc.role_arn
+  ci_cd_role_arn = module.github_oidc.role_arn
 }
 
 # --- LLAMADA AL MÓDULO GITHUB OIDC ---
