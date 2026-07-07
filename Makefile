@@ -1,5 +1,15 @@
 .PHONY: help build up down restart logs logs-api logs-web clean test test-backend test-frontend health metrics test-api load-quick load-full monitoring
 
+TARGET_ENV ?= local
+
+ifeq ($(TARGET_ENV),k8s)
+	HOST_URL = http://avatars-generator.local:8081
+	K6_URL = http://avatars-generator.local:8081
+else
+	HOST_URL = http://localhost:8080
+	K6_URL = http://host.docker.internal:8080
+endif
+
 COMPOSE = docker compose
 
 help: ## Mostrar esta ayuda
@@ -30,10 +40,10 @@ clean: ## Eliminar contenedores, imágenes y volúmenes de todos los stacks
 	$(COMPOSE) down -v --rmi local
 
 health: ## Verificar health del API
-	@curl -sf http://localhost:8080/health | python3 -m json.tool || echo "API no disponible"
+	@curl -sf $(HOST_URL)/health | python3 -m json.tool || echo "API no disponible"
 
 metrics: ## Ver métricas del API
-	@curl -sf http://localhost:8080/metrics || echo "Métricas no disponibles"
+	@curl -sf $(HOST_URL)/metrics || echo "Métricas no disponibles"
 
 test: test-backend test-frontend ## Ejecutar todos los tests
 
@@ -47,15 +57,15 @@ test-frontend: ## Tests unitarios del frontend (vitest)
 
 test-api: ## Probar endpoints del API (requiere servicios corriendo)
 	@echo "=== Health ==="
-	@curl -sf http://localhost:8080/health | python3 -m json.tool
+	@curl -sf $(HOST_URL)/health | python3 -m json.tool
 	@echo "=== Ready ==="
-	@curl -sf -o /dev/null -w "Status: %{http_code}\n" http://localhost:8080/ready
+	@curl -sf -o /dev/null -w "Status: %{http_code}\n" $(HOST_URL)/ready
 	@echo "=== Avatar Spec ==="
-	@curl -sf http://localhost:8080/api/avatar/spec | python3 -m json.tool | head -20
+	@curl -sf $(HOST_URL)/api/avatar/spec | python3 -m json.tool | head -20
 	@echo "=== Avatar SVG ==="
-	@curl -sf -o /dev/null -w "Status: %{http_code}, Size: %{size_download} bytes\n" "http://localhost:8080/api/avatar?eyes=default&mouth=smile"
+	@curl -sf -o /dev/null -w "Status: %{http_code}, Size: %{size_download} bytes\n" "$(HOST_URL)/api/avatar?eyes=default&mouth=smile"
 	@echo "=== Gallery ==="
-	@curl -sf http://localhost:8080/api/gallery | python3 -m json.tool
+	@curl -sf $(HOST_URL)/api/gallery | python3 -m json.tool
 	@echo "Todos los endpoints OK"
 
 monitoring: ## Levantar Prometheus + Grafana
@@ -66,12 +76,12 @@ monitoring-down: ## Detener Prometheus + Grafana
 
 load-quick: ## Load test rápido (30s, 10 usuarios)
 	@mkdir -p loadtest/reports
-	$(COMPOSE) -f docker-compose.k6.yml run --rm k6-quick
+	BASE_URL=$(K6_URL) $(COMPOSE) -f docker-compose.k6.yml run --rm k6-quick
 	@echo "📊 Reporte: loadtest/reports/quick-report.html"
 	@open loadtest/reports/quick-report.html 2>/dev/null || true
 
 load-full: ## Load test completo (2min, 20 usuarios pico)
 	@mkdir -p loadtest/reports
-	$(COMPOSE) -f docker-compose.k6.yml run --rm k6-full
+	BASE_URL=$(K6_URL) $(COMPOSE) -f docker-compose.k6.yml run --rm k6-full
 	@echo "📊 Reporte: loadtest/reports/full-report.html"
 	@open loadtest/reports/full-report.html 2>/dev/null || true

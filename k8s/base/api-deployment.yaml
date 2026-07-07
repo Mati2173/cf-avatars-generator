@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: avatars-generator-api
+  labels:
+    app: avatars-generator-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: avatars-generator-api
+  template:
+    metadata:
+      labels:
+        app: avatars-generator-api
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/mati2173/cf-avatars-generator-api
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          envFrom:
+            - configMapRef:
+                name: avatars-generator-config
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 5000
+            initialDelaySeconds: 10
+            periodSeconds: 10

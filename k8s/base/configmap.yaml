@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: avatars-generator-config
+data:
+  FLASK_ENV: "production"
+  DB_PATH: "/data/avatars.db"

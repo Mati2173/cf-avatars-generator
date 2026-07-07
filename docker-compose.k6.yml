@@ -16,6 +16,7 @@ services:
     command: run /scripts/quick.js
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      - "avatars-generator.local:host-gateway"
 
   k6-full:
     image: grafana/k6:0.57.0
@@ -28,3 +29,4 @@ services:
     command: run /scripts/script.js
     extra_hosts:
       - "host.docker.internal:host-gateway"
+      - "avatars-generator.local:host-gateway"
